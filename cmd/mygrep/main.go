@@ -131,6 +131,10 @@ func matchLine(line []byte, pattern string) (bool, error) {
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
 	fmt.Println("Logs from your program will appear here!")
 
+    if strings.HasPrefix(pattern, "^") {
+        return matchHere(string(line), pattern[1:], 0), nil
+    }
+
     for i := range line {
         if matchHere(string(line), pattern, i) {
             print(true)
