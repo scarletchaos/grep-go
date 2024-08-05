@@ -57,6 +57,11 @@ func isSpecial(letter byte) bool {
 func matchHere(line string, pattern string, here int) bool {
     p := 0
 
+    var end bool
+    if strings.HasSuffix(pattern, "$") {
+        end = true
+    }
+
     for l := here; l < len(line); {
         fmt.Printf("Line pointer now points at %v\n", l)
         fmt.Printf("Pattern pointer now points at %v\n", p)
@@ -116,6 +121,9 @@ func matchHere(line string, pattern string, here int) bool {
             }
         }
         if p >= len(pattern) {
+            if end {
+                return l == len(line)
+            }
             return true
         }
     }
