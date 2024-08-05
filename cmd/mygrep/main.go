@@ -60,6 +60,7 @@ func matchHere(line string, pattern string, here int) bool {
     var end bool
     if strings.HasSuffix(pattern, "$") {
         end = true
+        pattern = pattern[:len(pattern)-1]
     }
 
     for l := here; l < len(line); {
