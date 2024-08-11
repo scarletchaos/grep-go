@@ -116,16 +116,23 @@ func matchHere(line string, pattern string, here int) bool {
                 }
             }
             return false
+        } else if pattern[p] == '?' {
+            println("Pattern is ?")
+            inc = 1
         } else {
             fmt.Printf("No pattern, just letter")
             functor = isInGroup(string(pattern[p]))
             inc = 1
         }
         if !functor(line[l]) {
-            return false
-        } else {
-            p += inc
-        }
+            if p < len(pattern) - 1 && pattern[p+1] == '?' || pattern[p] == '?'{
+                inc = 1
+                l -= 1
+            } else {
+                return false
+            }
+        } 
+        p += inc
         l += 1
         if p >= len(pattern) {
             if end {
