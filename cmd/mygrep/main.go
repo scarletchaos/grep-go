@@ -119,6 +119,10 @@ func matchHere(line string, pattern string, here int) bool {
         } else if pattern[p] == '?' {
             println("Pattern is ?")
             inc = 1
+        } else if pattern[p] == '.' {
+            functor = func (byte) bool {
+                return true
+            }
         } else {
             fmt.Printf("No pattern, just letter")
             functor = isInGroup(string(pattern[p]))
