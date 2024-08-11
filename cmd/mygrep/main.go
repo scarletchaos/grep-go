@@ -54,6 +54,19 @@ func isSpecial(letter byte) bool {
     return strings.Contains("\\[]()^$", string(letter))
 }
 
+func isInGroup(group string) func (byte) bool {
+    if strings.HasPrefix(group, "^") {
+        return func (letter byte) bool {
+            return !strings.Contains(group, string(letter))
+        }
+    } else {
+        return func (letter byte) bool {
+            return strings.Contains(group, string(letter))
+        }
+    }
+}
+
+type predicate func (byte) bool
 func matchHere(line string, pattern string, here int) bool {
     p := 0
 
@@ -63,64 +76,57 @@ func matchHere(line string, pattern string, here int) bool {
         pattern = pattern[:len(pattern)-1]
     }
 
+    var functor predicate
+    var inc int
+
     for l := here; l < len(line); {
         fmt.Printf("Line pointer now points at %v\n", l)
         fmt.Printf("Pattern pointer now points at %v\n", p)
         if pattern[p] == '\\' {
             if p + 1 >= len(pattern) {
-                // panic("pattern ended unexpectedly")
+                panic("pattern ended unexpectedly")
             }
             p += 1
             if pattern[p] == 'd' {
                 // println("The pattern is \\d")
-                if !isDigit(line[l]) {
-                    return false
-                } else {
-                    p += 1
-                }
-                l += 1
+                functor = isDigit
             } else if pattern[p] == 'w' {
                 // println("The pattern is \\w")
-                if !isWord(line[l]) {
-                    return false
-                } else {
-                    p += 1
-                }
-                l += 1
+                functor = isWord
             }
+            inc = 1
         } else if pattern[p] == '[' {
             closing := strings.Index(pattern[p:], string(']'))
             if closing == -1 {
                 panic("no closing bracket")
             }
-            // println(closing)
+            group := pattern[p+1:closing+p] 
+            fmt.Printf("Pattern is [%s]", group)
             // println(p+1, closing+p+1)
-            group := pattern[p+1:closing+p]
-            println(group)
-            if group[0] == '^' {
-                if strings.Contains(group[1:], string(line[l])) {
-                    return false
-                } else {
-                    p += closing + 2
-                }
-                l += 1
-            } else {
-                if strings.Contains(group, string(line[l])) {
-                    p += closing + 2
-                } else {
-                    return false
-                }
-                l += 1
+            functor = isInGroup(group)
+            inc = closing + 2
+        } else if pattern[p] == '+' {
+            fmt.Printf("pattern is +")
+            if p == len(pattern) - 1 {
+                return true
             }
+            for ;l < len(line); l++{
+                if matchHere(line, pattern[p+1:], l) {
+                    return true
+                }
+            }
+            return false
         } else {
-            // fmt.Printf("No pattern, just word")
-            if line[l] == pattern[p] {
-                p += 1
-                l += 1
-            } else {
-                return false
-            }
+            fmt.Printf("No pattern, just letter")
+            functor = isInGroup(string(pattern[p]))
+            inc = 1
         }
+        if !functor(line[l]) {
+            return false
+        } else {
+            p += inc
+        }
+        l += 1
         if p >= len(pattern) {
             if end {
                 return l == len(line)
