@@ -37,6 +37,17 @@ func main() {
 	// default exit code is 0 which means success
 }
 
+type predicate func (byte) bool
+
+type Pattern struct {
+    text string
+    matcher predicate
+    len int
+}
+
+func (p Pattern) match (letter byte) bool {
+    return p.matcher(letter)
+}
 
 func isWord(letter byte) bool {
     return isDigit(letter) || isLetter(letter) || letter == '_'
@@ -66,7 +77,86 @@ func isInGroup(group string) func (byte) bool {
     }
 }
 
-type predicate func (byte) bool
+func tokenizePattern(text string) [][]Pattern {
+    s := len(text) - 1
+    e := len(text)
+    isPattern := false
+    var last byte
+    var result [][]Pattern
+    var subres   []Pattern
+    var currentPattern Pattern
+    for ; s >= 0; {
+        if strings.Contains("?*+])", string(text[s])) {
+            isPattern = true
+        } else {
+            isPattern = false
+        }
+        if strings.Contains("?*+", string(text[s])) {
+            last = text[s]
+        }
+        if strings.Contains("dw", string(text[s])) {
+            if s > 0 && text[s-1] == '\\' {
+                s = s - 1
+                e = s
+            }
+        } else if text[s] == ']' {
+            e = s + 1
+            for ; text[s] != '['; s-- {
+            }
+        } else if text[s] == ')' {
+            e = s + 1
+            for ; text[s] != '('; s-- {
+            }
+        }
+        if isPattern {
+            currentPattern = createPattern(text[s:e])
+            if last == '?' {
+                currentPattern.matcher = func (byte) bool {return true}
+            }
+            subres = append(subres, currentPattern)
+        } else {
+        }
+        s -= 1
+    }
+    println(isPattern)
+    return result
+}
+func createPattern(text string) Pattern {
+    var result Pattern
+    switch text[0] {
+    case '\\':
+        if text[1] == 'd' {
+            result = Pattern{text: text, matcher: isDigit, len: 1}
+        } else if text[1] == 'w' {
+            result = Pattern{text: text, matcher: isWord, len: 1}
+        } else if strings.Contains("[]().?*+", string(text[1])) {
+            result = Pattern{text: string(text[1]), matcher: func (letter byte) bool {return letter == text[1]}, len: 1}
+        }
+    case '[':
+        group := text[1:len(text)-1] 
+        result = Pattern{text: text, matcher: isInGroup(group), len:len(text)}
+    case '(':
+        patterns := strings.Split(text[1:len(text)-1], "|")
+        if len(patterns) > 1 {
+            result = Pattern{text: text, matcher: func(letter byte) bool {
+                for _, pat := range patterns {
+                    if createPattern(pat).matcher(letter) {
+                        return true
+                    }
+                }
+                return false
+            }, len: 1}
+        } else {
+            // No alternation, handle it as a normal pattern
+            result = createPattern(patterns[0])
+        }
+    default:
+        result = Pattern{text: text, matcher: func (letter byte) bool { return string(letter) == text }, len: 1}
+    }
+    return result
+}
+
+
 func matchHere(line string, pattern string, here int) bool {
     p := 0
 
@@ -104,6 +194,19 @@ func matchHere(line string, pattern string, here int) bool {
             fmt.Printf("Pattern is [%s]", group)
             // println(p+1, closing+p+1)
             functor = isInGroup(group)
+            inc = closing + 2
+        } else if pattern[p] == '(' {
+            closing := strings.Index(pattern[p:], string(')'))
+            if closing == -1 {
+                panic("no closing bracket")
+            }
+            group := pattern[p+1 : closing+p]
+            subPatterns := strings.Split(group, "|")
+            for _, subPattern := range subPatterns {
+                if matchHere(line, subPattern, l) {
+                    return true
+                }
+            }
             inc = closing + 2
         } else if pattern[p] == '+' {
             fmt.Printf("pattern is +")
